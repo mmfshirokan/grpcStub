@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mmfshirokan/GoProject1/proto/pb"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -18,7 +21,9 @@ func main() {
 	}
 	defaultPassword := "abcd"
 
-	conn, err := grpc.Dial(target)
+	option := grpc.WithTransportCredentials(insecure.NewCredentials())
+
+	conn, err := grpc.Dial(target, option)
 	if err != nil {
 		log.Fatal("can't connect to rpc on ", target)
 		return
@@ -35,10 +40,10 @@ func main() {
 		Password: defaultPassword,
 	})
 	if err != nil {
-		log.Debug("SignUp method failed")
+		log.Info("SignUp method failed")
 		log.Error(err)
 	} else {
-		log.Debug("SignUp method passed")
+		log.Info("SignUp method passed")
 	}
 
 	respSignIn, err := tokClient.SignIn(ctx, &pb.RequestSignIn{
@@ -46,36 +51,38 @@ func main() {
 		Password: defaultPassword,
 	})
 	if err != nil {
-		log.Debug("SignIn method failed")
+		log.Info("SignIn method failed")
 		log.Error(err)
 	} else {
-		log.Debug("SignIn mrthod passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respSignIn.GetTokens().GetRft().Hash)
+		log.Info(fmt.Sprintf("SignIn mrthod passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respSignIn.GetTokens().GetRft().Hash))
 	}
 
 	respRefresh, err := tokClient.Refresh(ctx, &pb.RequestRefresh{
 		Rft: respSignIn.Tokens.Rft,
 	})
 	if err != nil {
-		log.Debug("Refrsh method failed")
+		log.Info("Refrsh method failed")
 		log.Error(err)
 	} else {
-		log.Debug("Refrsh method passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respRefresh.Tokens.GetRft().Hash)
+		log.Info(fmt.Sprintf("Refrsh method passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respRefresh.Tokens.GetRft().Hash))
 	}
 
 	//userServer testing:
 
-	respGetUser, err := usrClient.GetUser(ctx, &pb.RequestGetUser{
+	authContext := metadata.AppendToOutgoingContext(ctx, "authorization", respSignIn.GetTokens().GetAuthToken())
+
+	respGetUser, err := usrClient.GetUser(authContext, &pb.RequestGetUser{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
 		UserID:    defaultUserData.Id,
 	})
 	if err != nil {
-		log.Debug("GetUser failed")
+		log.Info("GetUser failed")
 		log.Error(err)
 	} else {
-		log.Debug("GetUser passed with: %d, %s, %t", respGetUser.GetData().GetId(), respGetUser.GetData().GetName(), respGetUser.GetData().GetMale())
+		log.Info(fmt.Printf("GetUser passed with: %v, %v, %v", respGetUser.GetData().GetId(), respGetUser.GetData().GetName(), respGetUser.GetData().GetMale()))
 	}
 
-	_, err = usrClient.UpdateUser(ctx, &pb.RequestUpdateUser{
+	_, err = usrClient.UpdateUser(authContext, &pb.RequestUpdateUser{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
 		Data: &pb.UserData{
 			// Id: defaultUserData.Id, // ?
@@ -84,20 +91,20 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Debug("UpdateUser failed")
+		log.Info("UpdateUser failed")
 		log.Error(err)
 	} else {
-		log.Debug("UpdateUser passed")
+		log.Info("UpdateUser passed")
 	}
 
-	usrClient.DeleteUser(ctx, &pb.RequestDelete{
+	usrClient.DeleteUser(authContext, &pb.RequestDelete{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
 		UserID:    defaultUserData.Id,
 	})
 	if err != nil {
-		log.Debug("DeleteUser failed")
+		log.Info("DeleteUser failed")
 		log.Error(err)
 	} else {
-		log.Debug("DeleteUser passed")
+		log.Info("DeleteUser passed")
 	}
 }
