@@ -133,12 +133,20 @@ func UploadImage(authContext context.Context, imgClient pb.ImageClient, authToke
 
 	imgName := "defaultUpload"
 	stream.Send(&pb.RequestUploadImage{
-		AuthToken:        &authToken,
-		UserID:           &defaultUserData.Id,
-		ImageName:        &imgName,
-		ImagePiece:       nil,
-		StreamIsFinished: false,
+		AuthToken:  &authToken,
+		UserID:     &defaultUserData.Id,
+		ImageName:  &imgName,
+		ImagePiece: nil,
 	})
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if req.GetResponse() == "ok" {
+			break
+		}
+	}
 
 	imgFull, err := os.ReadFile(("/home/andreishyrakanau/projects/project1/grpcStub/images/110-defaultUpload.png"))
 	if err != nil {
@@ -161,29 +169,49 @@ func UploadImage(authContext context.Context, imgClient pb.ImageClient, authToke
 		stream.Send(&pb.RequestUploadImage{
 			ImagePiece: imgPiece,
 		})
+		for {
+			req, err := stream.Recv()
+			if err != nil {
+				log.Fatal(err)
+			}
+			if req.GetResponse() == "ok" {
+				break
+			}
+		}
 	}
 }
 
 func DownloadImage(authContext context.Context, imgClient pb.ImageClient, authToken string) {
-	stream, err := imgClient.DownloadImage(authContext, &pb.RequestDownloadImage{
-		AuthToken: authToken,
-		UserID:    defaultUserData.Id,
-		ImageName: "defaultDownload",
-	})
+	stream, err := imgClient.DownloadImage(authContext)
 	if err != nil {
 		log.Fatal("DownloadImage failed at the start:", err)
 	}
+
+	imgName := "defaultDownload"
+	stream.Send(&pb.RequestDownloadImage{
+		AuthToken: &authToken,
+		UserID:    &defaultUserData.Id,
+		ImageName: &imgName,
+		Response:  "ok",
+	})
 
 	imgFull := make([]byte, 11000)
 
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
+			stream.Send(&pb.RequestDownloadImage{
+				Response: "ok",
+			})
 			break
 		}
 		if err != nil {
 			log.Fatal("reciev error:", err)
 		}
+
+		stream.Send(&pb.RequestDownloadImage{
+			Response: "ok",
+		})
 
 		imgFull = append(imgFull, req.ImagePiece...)
 	}
