@@ -1,8 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
+	"io"
+	"os"
+	"strconv"
 
 	"github.com/mmfshirokan/GoProject1/proto/pb"
 	log "github.com/sirupsen/logrus"
@@ -11,16 +17,19 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-func main() {
-	ctx := context.Background()
-	target := "localhost:9091"
-	defaultUserData := &pb.UserData{
+var (
+	defaultUserData = &pb.UserData{
 		Id:   110,
 		Name: "Jhon",
 		Male: true,
 	}
-	defaultPassword := "abcd"
+	defaultPassword = "abcd"
+)
 
+// TODO separate test methods into functions
+func main() {
+	ctx := context.Background()
+	target := "localhost:9091"
 	option := grpc.WithTransportCredentials(insecure.NewCredentials())
 
 	conn, err := grpc.Dial(target, option)
@@ -32,6 +41,7 @@ func main() {
 
 	usrClient := pb.NewUserClient(conn)
 	tokClient := pb.NewTokenClient(conn)
+	imgClient := pb.NewImageClient(conn)
 
 	// tokenServer testing:
 
@@ -67,7 +77,7 @@ func main() {
 		log.Info(fmt.Sprintf("Refrsh method passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respRefresh.Tokens.GetRft().Hash))
 	}
 
-	//userServer testing:
+	// userServer testing:
 
 	authContext := metadata.AppendToOutgoingContext(ctx, "authorization", respSignIn.GetTokens().GetAuthToken())
 
@@ -85,7 +95,6 @@ func main() {
 	_, err = usrClient.UpdateUser(authContext, &pb.RequestUpdateUser{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
 		Data: &pb.UserData{
-			// Id: defaultUserData.Id, // ?
 			Name: "Markus",
 			Male: true,
 		},
@@ -107,4 +116,102 @@ func main() {
 	} else {
 		log.Info("DeleteUser passed")
 	}
+
+	// imageServer testing:
+
+	UploadImage(authContext, imgClient, respSignIn.GetTokens().GetAuthToken())
+
+	DownloadImage(authContext, imgClient, respSignIn.GetTokens().GetAuthToken())
+
+}
+
+func UploadImage(authContext context.Context, imgClient pb.ImageClient, authToken string) {
+	stream, err := imgClient.UploadImage(authContext)
+	if err != nil {
+		log.Fatal("Upload image failed:", err)
+	}
+
+	imgName := "defaultUpload"
+	stream.Send(&pb.RequestUploadImage{
+		AuthToken:        &authToken,
+		UserID:           &defaultUserData.Id,
+		ImageName:        &imgName,
+		ImagePiece:       nil,
+		StreamIsFinished: false,
+	})
+
+	imgFull, err := os.ReadFile(("/home/andreishyrakanau/projects/project1/grpcStub/images/110-defaultUpload.png"))
+	if err != nil {
+		log.Fatal("Wrong image path", err)
+	}
+
+	imgPiece := make([]byte, 128)
+	imgReader := bytes.NewReader(imgFull)
+
+	for {
+		_, err := imgReader.Read(imgPiece)
+		if err == io.EOF {
+			stream.CloseSend()
+			return
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		stream.Send(&pb.RequestUploadImage{
+			ImagePiece: imgPiece,
+		})
+	}
+}
+
+func DownloadImage(authContext context.Context, imgClient pb.ImageClient, authToken string) {
+	stream, err := imgClient.DownloadImage(authContext, &pb.RequestDownloadImage{
+		AuthToken: authToken,
+		UserID:    defaultUserData.Id,
+		ImageName: "defaultDownload",
+	})
+	if err != nil {
+		log.Fatal("DownloadImage failed at the start:", err)
+	}
+
+	imgFull := make([]byte, 11000)
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal("reciev error:", err)
+		}
+
+		imgFull = append(imgFull, req.ImagePiece...)
+	}
+
+	err = stream.CloseSend()
+	if err != nil {
+		log.Error("failed to close stream", err)
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(imgFull))
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	destFile, err := os.Create(ImgNameWrap(defaultUserData.Id, "defaultDownload"))
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = png.Encode(destFile, img)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+}
+
+func ImgNameWrap(id int64, name string) string {
+	return "/home/andreishyrakanau/projects/project1/grpcStub/images/" + strconv.FormatInt(id, 10) + "-" + name + ".png"
 }
