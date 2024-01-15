@@ -3,7 +3,7 @@ module github.com/mmfshirokan/GoStud1
 go 1.21.1
 
 require (
-	github.com/mmfshirokan/GoProject1 v0.0.0-20240115160559-127d10bc3d2f
+	github.com/mmfshirokan/GoProject1 v0.0.0-20240115180357-4e7545f94918
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.60.1
 )
