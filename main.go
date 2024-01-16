@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"image"
 	"image/png"
 	"io"
@@ -52,9 +51,9 @@ func main() {
 	if err != nil {
 		log.Info("SignUp method failed")
 		log.Error(err)
-	} else {
-		log.Info("SignUp method passed")
-	}
+	} //else {
+	// log.Info("SignUp method passed")
+	//}
 
 	respSignIn, err := tokClient.SignIn(ctx, &pb.RequestSignIn{
 		UserID:   defaultUserData.Id,
@@ -63,34 +62,34 @@ func main() {
 	if err != nil {
 		log.Info("SignIn method failed")
 		log.Error(err)
-	} else {
-		log.Info(fmt.Sprintf("SignIn mrthod passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respSignIn.GetTokens().GetRft().Hash))
-	}
+	} //else {
+	// log.Info(fmt.Sprintf("SignIn mrthod passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respSignIn.GetTokens().GetRft().Hash))
+	//}
 
-	respRefresh, err := tokClient.Refresh(ctx, &pb.RequestRefresh{
+	_, err = tokClient.Refresh(ctx, &pb.RequestRefresh{ // respRefresh, err := tokClient.Refresh(ctx, &pb.RequestRefresh{
 		Rft: respSignIn.Tokens.Rft,
 	})
 	if err != nil {
 		log.Info("Refrsh method failed")
 		log.Error(err)
-	} else {
-		log.Info(fmt.Sprintf("Refrsh method passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respRefresh.Tokens.GetRft().Hash))
-	}
+	} //else {
+	// log.Info(fmt.Sprintf("Refrsh method passed with: %s, %s", respSignIn.GetTokens().GetAuthToken(), respRefresh.Tokens.GetRft().Hash))
+	//}
 
 	// userServer testing:
 
 	authContext := metadata.AppendToOutgoingContext(ctx, "authorization", respSignIn.GetTokens().GetAuthToken())
 
-	respGetUser, err := usrClient.GetUser(authContext, &pb.RequestGetUser{
+	_, err = usrClient.GetUser(authContext, &pb.RequestGetUser{ // respGetUser, err := usrClient.GetUser(authContext, &pb.RequestGetUser{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
 		UserID:    defaultUserData.Id,
 	})
 	if err != nil {
 		log.Info("GetUser failed")
 		log.Error(err)
-	} else {
-		log.Info(fmt.Printf("GetUser passed with: %v, %v, %v", respGetUser.GetData().GetId(), respGetUser.GetData().GetName(), respGetUser.GetData().GetMale()))
-	}
+	} // else {
+	// log.Info(fmt.Printf("GetUser passed with: %v, %v, %v", respGetUser.GetData().GetId(), respGetUser.GetData().GetName(), respGetUser.GetData().GetMale()))
+	//	}
 
 	_, err = usrClient.UpdateUser(authContext, &pb.RequestUpdateUser{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
@@ -102,9 +101,9 @@ func main() {
 	if err != nil {
 		log.Info("UpdateUser failed")
 		log.Error(err)
-	} else {
-		log.Info("UpdateUser passed")
-	}
+	} //else {
+	// log.Info("UpdateUser passed")
+	//}
 
 	usrClient.DeleteUser(authContext, &pb.RequestDelete{
 		AuthToken: respSignIn.GetTokens().GetAuthToken(),
@@ -113,35 +112,37 @@ func main() {
 	if err != nil {
 		log.Info("DeleteUser failed")
 		log.Error(err)
-	} else {
-		log.Info("DeleteUser passed")
-	}
+	} //else {
+	// log.Info("DeleteUser passed")
+	//}
 
 	// imageServer testing:
 
 	UploadImage(authContext, imgClient, respSignIn.GetTokens().GetAuthToken())
 
-	DownloadImage(authContext, imgClient, respSignIn.GetTokens().GetAuthToken())
+	//DownloadImage(authContext, imgClient, respSignIn.GetTokens().GetAuthToken())
 
 }
 
 func UploadImage(authContext context.Context, imgClient pb.ImageClient, authToken string) {
+	imgFull, err := os.ReadFile(("/home/andreishyrakanau/projects/project1/grpcStub/images/110-defaultUpload.png"))
+	if err != nil {
+		log.Fatal("Wrong image path", err)
+	}
+
 	stream, err := imgClient.UploadImage(authContext)
 	if err != nil {
 		log.Fatal("Upload image failed:", err)
 	}
 
 	imgName := "defaultUpload"
-	stream.Send(&pb.RequestUploadImage{
-		AuthToken:  &authToken,
+	err = stream.Send(&pb.RequestUploadImage{
 		UserID:     &defaultUserData.Id,
 		ImageName:  &imgName,
 		ImagePiece: nil,
 	})
-
-	imgFull, err := os.ReadFile(("/home/andreishyrakanau/projects/project1/grpcStub/images/110-defaultUpload.png"))
 	if err != nil {
-		log.Fatal("Wrong image path", err)
+		log.Fatal(err)
 	}
 
 	imgPiece := make([]byte, 128)
@@ -150,22 +151,26 @@ func UploadImage(authContext context.Context, imgClient pb.ImageClient, authToke
 	for {
 		_, err := imgReader.Read(imgPiece)
 		if err == io.EOF {
-			stream.CloseSend()
+			stream.CloseAndRecv()
 			return
 		}
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("failed to read file:", err)
 		}
 
-		stream.Send(&pb.RequestUploadImage{
+		err = stream.Send(&pb.RequestUploadImage{
+			UserID:     nil,
+			ImageName:  nil,
 			ImagePiece: imgPiece,
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
 func DownloadImage(authContext context.Context, imgClient pb.ImageClient, authToken string) {
 	stream, err := imgClient.DownloadImage(authContext, &pb.RequestDownloadImage{
-		AuthToken: authToken,
 		UserID:    defaultUserData.Id,
 		ImageName: "defaultDownload",
 	})
@@ -173,7 +178,7 @@ func DownloadImage(authContext context.Context, imgClient pb.ImageClient, authTo
 		log.Fatal("DownloadImage failed at the start:", err)
 	}
 
-	imgFull := make([]byte, 11000)
+	imgFull := make([]byte, 0)
 
 	for {
 		req, err := stream.Recv()
@@ -209,6 +214,7 @@ func DownloadImage(authContext context.Context, imgClient pb.ImageClient, authTo
 		log.Error(err)
 		return
 	}
+	log.Info("Download pass")
 }
 
 func ImgNameWrap(id int64, name string) string {

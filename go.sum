@@ -17,6 +17,10 @@ github.com/mmfshirokan/GoProject1 v0.0.0-20240115160559-127d10bc3d2f h1:sJ/bZl07
 github.com/mmfshirokan/GoProject1 v0.0.0-20240115160559-127d10bc3d2f/go.mod h1:ra8ZvwSlKYFsFfZFuiOe7p1DHpMVPY4iAAOiNQ0QDXI=
 github.com/mmfshirokan/GoProject1 v0.0.0-20240115180357-4e7545f94918 h1:RAHiBf1aZQntUfKL47LvDBrnaGu+4cKqMNcA4G7fgro=
 github.com/mmfshirokan/GoProject1 v0.0.0-20240115180357-4e7545f94918/go.mod h1:ra8ZvwSlKYFsFfZFuiOe7p1DHpMVPY4iAAOiNQ0QDXI=
+github.com/mmfshirokan/GoProject1 v0.0.0-20240116083613-b0ca4f7165d1 h1:pRtNfMlsI3IxUgIAEogEgfsKx4X9XZhb1oBwAvBdce0=
+github.com/mmfshirokan/GoProject1 v0.0.0-20240116083613-b0ca4f7165d1/go.mod h1:ra8ZvwSlKYFsFfZFuiOe7p1DHpMVPY4iAAOiNQ0QDXI=
+github.com/mmfshirokan/GoProject1 v0.0.0-20240116095217-c52086109423 h1:p5Wb9t7B6ulFk2kzddJkh7aM2pJ/tTXHLZZoO9xoLrw=
+github.com/mmfshirokan/GoProject1 v0.0.0-20240116095217-c52086109423/go.mod h1:ra8ZvwSlKYFsFfZFuiOe7p1DHpMVPY4iAAOiNQ0QDXI=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
